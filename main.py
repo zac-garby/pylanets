@@ -24,6 +24,7 @@ C = 299792458
 SF = 3e+8
 RAD_SF = 1
 TIMESCALE = 5e+4
+TIME_RESOLUTION = 8
 DYNAMIC_TIME_FACTOR = 1
 TIMESCALE_SLOWDOWN_EXPONENT = 1.5
 TV = np.array([0, 0], dtype=np.float)
@@ -111,7 +112,7 @@ class Body(object):
         self.pos += self.vel * dt
     
     def required_timesteps(self):
-         return round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR)
+         return max(round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR), TIME_RESOLUTION)
 
     def render(self, surface):
         vpos = ((self.pos + TV) / SF + 400).astype(int)
