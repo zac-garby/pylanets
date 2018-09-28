@@ -27,6 +27,8 @@ TIMESCALE = 5e+4
 TV = np.array([0, 0], dtype=np.float)
 TRAIL_LEN = 500
 FONT = None
+FOLLOWING = None
+SQRT_2 = math.sqrt(2)
 
 class Body(object):
     def __init__(self, name, x, y, mass, radius):
@@ -88,7 +90,7 @@ class Body(object):
 
         pygame.draw.circle(surface, (255, 255, 255), vpos, vrad)
         label = FONT.render("%s (%fc)" % (self.name, math.hypot(self.vel[0], self.vel[1]) / 299792458), 1, (255, 255, 255))
-        surface.blit(label, (vpos[0] + 1/math.sqrt(2)*vrad, vpos[1] + 1/math.sqrt(2)*vrad))
+        surface.blit(label, (vpos[0] + 1/SQRT_2*vrad, vpos[1] + 1/SQRT_2*vrad))
 
 class System(object):
     def __init__(self):
@@ -120,6 +122,7 @@ def main():
     global TV
     global SF
     global FONT
+    global FOLLOWING
 
     pygame.init()
     size = width, height = 800, 800
@@ -136,6 +139,8 @@ def main():
         planet.vel[0] = velocity
         system.add(planet)
 
+    FOLLOWING = 3
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -150,6 +155,13 @@ def main():
         if pygame.mouse.get_pressed()[0]:
             TV[0] += diff[0] * SF
             TV[1] += diff[1] * SF
+        elif FOLLOWING != None:
+            wanted = np.array([
+                -system.bodies[FOLLOWING].pos[0],
+                -system.bodies[FOLLOWING].pos[1]
+            ])
+            
+            TV += (wanted - TV) * 0.05
 
         system.step()
         
