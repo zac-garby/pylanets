@@ -9,21 +9,23 @@ PLANETS = [
     ("sun", 0, 0, 1.99e+30, 1.392e+9),
     ("mercury", 46e+9, 58.98e+3, 0.33011e+24, 2439.7e+3),
     ("venus", 107.48e+9, 35.26e+3, 4.8675e+24, 6051.8e+3),
-    ("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3),
+    #("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3),
     ("mars", 206.62e+9, 26.5e+3, 0.64171e+24, 3396.2e+3),
     ("jupiter", 816.62e+9, 13.72e+3, 1898.19e+24, 71492e+3),
     ("saturn", 1352.55e+9, 10.18e+3, 568.34e+24, 60268e+3),
     ("uranus", 2741.30e+9, 7.11e+3, 86.813e+24, 25559e+3),
     ("neptune", 4444.45e+9, 5.5e+3, 102.413e+24, 24764e+3),
     ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3),
-    ("moon", 0.3633e+9 + 147.09e+9, 1.082e+3 + 30.29e+3, 0.07346e+24, 1738.1e+3)
+    ("moon", 0.3633e+9 + 147.09e+9, 1.082e+3 + 30.29e+3 + 0.23 * 299792458, 0.07346e+24, 1738.1e+3),
+    ("death", 150.10e+9, 30.29e+3, 5e+35, 1e+3),
 ]
 
 GRAV = 6.67e-11
 C = 299792458
-SF = 5e+8
+SF = 3e+8
 RAD_SF = 1
-TIMESCALE = 5e+4
+TIMESCALE = 50
+DYNAMIC_TIME_FACTOR = 2
 TV = np.array([0, 0], dtype=np.float)
 TRAIL_LEN = 500
 FONT = None
@@ -43,7 +45,7 @@ class Body(object):
         self.acc = np.array([0, 0], dtype=np.float)
     
     def compute_force_to(self, other):
-        dist = math.hypot(other.pos[0] - self.pos[0], other.pos[1] - self.pos[1])
+        dist = self.dist(other)
         magnitude = (GRAV * self.rmass() * other.mass) / (dist ** 2)
 
         force = np.array([
@@ -52,6 +54,9 @@ class Body(object):
         ], dtype=np.float)
 
         return normalize(force) * magnitude
+    
+    def dist(self, other):
+        return math.hypot(other.pos[0] - self.pos[0], other.pos[1] - self.pos[1])
     
     def rmass(self):
         try:
@@ -63,7 +68,28 @@ class Body(object):
     def speed(self):
         return math.hypot(self.vel[0], self.vel[1])
     
+    def schwarzchild_radius(self):
+        return (2 * self.rmass() * GRAV) / (C ** 2)
+    
     def step(self, dt):
+        global FOLLOWING
+
+        for body in self.system.bodies:
+            if body == self:
+                continue
+            
+            if self.dist(body) < body.schwarzchild_radius():
+                index = self.system.bodies.index(self)
+                del self.system.bodies[index]
+                FOLLOWING = None
+
+        timesteps = self.required_timesteps()
+        cdt = dt / timesteps
+
+        for i in range(timesteps):
+            self.discrete_step(cdt)
+    
+    def discrete_step(self, dt):
         if self.system == None:
             return
                 
@@ -77,6 +103,9 @@ class Body(object):
         self.acc = total_force / self.rmass()
         self.vel += self.acc * dt
         self.pos += self.vel * dt
+    
+    def required_timesteps(self):
+         return round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR) ** 3
 
     def render(self, surface):
         vpos = ((self.pos + TV) / SF + 400).astype(int)
@@ -88,6 +117,7 @@ class Body(object):
         if len(self.trail) > TRAIL_LEN:
             self.trail = self.trail[1:]
 
+        pygame.draw.circle(surface, (60, 60, 60, 30), vpos, int(self.schwarzchild_radius() / (SF * RAD_SF)))
         pygame.draw.circle(surface, (255, 255, 255), vpos, vrad)
         label = FONT.render("%s (%fc)" % (self.name, math.hypot(self.vel[0], self.vel[1]) / 299792458), 1, (255, 255, 255))
         surface.blit(label, (vpos[0] + 1/SQRT_2*vrad, vpos[1] + 1/SQRT_2*vrad))
@@ -139,7 +169,7 @@ def main():
         planet.vel[0] = velocity
         system.add(planet)
 
-    FOLLOWING = 3
+    FOLLOWING = 10
 
     while True:
         for event in pygame.event.get():
@@ -161,7 +191,7 @@ def main():
                 -system.bodies[FOLLOWING].pos[1]
             ])
             
-            TV += (wanted - TV) * 0.05
+            TV += (wanted - TV) * 0.3
 
         system.step()
         
