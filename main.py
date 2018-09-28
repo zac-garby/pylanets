@@ -9,23 +9,23 @@ PLANETS = [
     ("sun", 0, 0, 1.99e+30, 1.392e+9),
     ("mercury", 46e+9, 58.98e+3, 0.33011e+24, 2439.7e+3),
     ("venus", 107.48e+9, 35.26e+3, 4.8675e+24, 6051.8e+3),
-    #("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3),
+    ("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3),
     ("mars", 206.62e+9, 26.5e+3, 0.64171e+24, 3396.2e+3),
     ("jupiter", 816.62e+9, 13.72e+3, 1898.19e+24, 71492e+3),
     ("saturn", 1352.55e+9, 10.18e+3, 568.34e+24, 60268e+3),
     ("uranus", 2741.30e+9, 7.11e+3, 86.813e+24, 25559e+3),
     ("neptune", 4444.45e+9, 5.5e+3, 102.413e+24, 24764e+3),
     ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3),
-    ("moon", 0.3633e+9 + 147.09e+9, 1.082e+3 + 30.29e+3 + 0.23 * 299792458, 0.07346e+24, 1738.1e+3),
-    ("death", 150.10e+9, 30.29e+3, 5e+35, 1e+3),
+    ("moon", 147.09e+9 + 0.3633e+9, 30.29e+3 + 1.082e+3, 0.07346e+24, 1738.1e+3),
 ]
 
 GRAV = 6.67e-11
 C = 299792458
 SF = 3e+8
 RAD_SF = 1
-TIMESCALE = 50
-DYNAMIC_TIME_FACTOR = 2
+TIMESCALE = 5e+3
+DYNAMIC_TIME_FACTOR = 1
+TIMESCALE_SLOWDOWN_EXPONENT = 1.5
 TV = np.array([0, 0], dtype=np.float)
 TRAIL_LEN = 500
 FONT = None
@@ -61,9 +61,9 @@ class Body(object):
     def rmass(self):
         try:
             return self.mass / math.sqrt(1 - math.pow(self.speed(), 2) / math.pow(C, 2))
-        except:
+        except Exception as e:
             print(self.mass, self.speed(), self.speed() / C)
-            quit()
+            raise e
     
     def speed(self):
         return math.hypot(self.vel[0], self.vel[1])
@@ -72,22 +72,28 @@ class Body(object):
         return (2 * self.rmass() * GRAV) / (C ** 2)
     
     def step(self, dt):
-        global FOLLOWING
-
         for body in self.system.bodies:
             if body == self:
                 continue
             
-            if self.dist(body) < body.schwarzchild_radius():
-                index = self.system.bodies.index(self)
-                del self.system.bodies[index]
-                FOLLOWING = None
+            if self.dist(body) < body.schwarzchild_radius() + self.schwarzchild_radius():
+                if self.rmass() > body.rmass():
+                    body.coalesce(self)
+                else:
+                    self.coalesce(other)
 
         timesteps = self.required_timesteps()
         cdt = dt / timesteps
 
         for i in range(timesteps):
             self.discrete_step(cdt)
+        
+    def coalesce(self, other):
+        global FOLLOWING
+
+        index = self.system.bodies.index(self)
+        del self.system.bodies[index]
+        FOLLOWING = None
     
     def discrete_step(self, dt):
         if self.system == None:
@@ -105,7 +111,7 @@ class Body(object):
         self.pos += self.vel * dt
     
     def required_timesteps(self):
-         return round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR) ** 3
+         return round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR)
 
     def render(self, surface):
         vpos = ((self.pos + TV) / SF + 400).astype(int)
@@ -117,7 +123,7 @@ class Body(object):
         if len(self.trail) > TRAIL_LEN:
             self.trail = self.trail[1:]
 
-        pygame.draw.circle(surface, (60, 60, 60, 30), vpos, int(self.schwarzchild_radius() / (SF * RAD_SF)))
+        pygame.draw.circle(surface, (20, 20, 20, 30), vpos, int(self.schwarzchild_radius() / (SF * RAD_SF)))
         pygame.draw.circle(surface, (255, 255, 255), vpos, vrad)
         label = FONT.render("%s (%fc)" % (self.name, math.hypot(self.vel[0], self.vel[1]) / 299792458), 1, (255, 255, 255))
         surface.blit(label, (vpos[0] + 1/SQRT_2*vrad, vpos[1] + 1/SQRT_2*vrad))
@@ -126,6 +132,7 @@ class System(object):
     def __init__(self):
         self.bodies = []
         self.last_frame = time.time()
+        self.last_scaled_dt = 0
     
     def add(self, body):
         body.system = self
@@ -135,12 +142,20 @@ class System(object):
         dt = time.time() - self.last_frame
         self.last_frame = time.time()
 
+        max_speed = max(map(lambda b: b.speed(), self.bodies)) / C
+
         for body in self.bodies:
-            body.step(dt * TIMESCALE)
+            scaled_dt = min(dt * TIMESCALE / (max_speed ** TIMESCALE_SLOWDOWN_EXPONENT), dt * TIMESCALE)
+            body.step(scaled_dt)
+            self.last_scaled_dt = scaled_dt
     
     def render(self, surface):
         for body in self.bodies:
             body.render(surface)
+        
+        following_name = "-" if FOLLOWING == None else self.bodies[FOLLOWING].name
+        label = FONT.render("ts: %f; sts: %f; following %s" % (TIMESCALE, self.last_scaled_dt, following_name), 1, (0, 0, 0), (255, 255, 255))
+        surface.blit(label, (0, 0))
 
 def normalize(v):
     norm = np.linalg.norm(v)
