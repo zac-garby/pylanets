@@ -16,16 +16,15 @@ PLANETS = [
     ("uranus", 2741.30e+9, 7.11e+3, 86.813e+24, 25559e+3),
     ("neptune", 4444.45e+9, 5.5e+3, 102.413e+24, 24764e+3),
     ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3),
-    ("moon", 0.3633e+9 + 147.09e+9, 30.29e+3 + 1082, 0.07346e+24, 1738.1e+3),
-    ("death", 160.0e+9, 30.29e+3, 5e+35, 1e+3),
+    ("moon", 147.09e+9 + 0.3633e+9, 30.29e+3 + 1.082e+3, 0.07346e+24, 1738.1e+3),
 ]
 
 GRAV = 6.67e-11
 C = 299792458
 SF = 3e+8
 RAD_SF = 1
-TIMESCALE = 1
-TIME_RESOLOUTION = 1
+TIMESCALE = 5e+4
+TIME_RESOLUTION = 8
 DYNAMIC_TIME_FACTOR = 1
 TIMESCALE_SLOWDOWN_EXPONENT = 1.5
 TV = np.array([0, 0], dtype=np.float)
@@ -113,10 +112,7 @@ class Body(object):
         self.pos += self.vel * dt
     
     def required_timesteps(self):
-         dts = round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR)
-         if dts < TIME_RESOLOUTION:
-             dts = TIME_RESOLOUTION
-         return dts    
+         return max(round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR), TIME_RESOLUTION)
 
     def render(self, surface):
         vpos = ((self.pos + TV) / SF + 400).astype(int)
@@ -150,9 +146,7 @@ class System(object):
         max_speed = max(map(lambda b: b.speed(), self.bodies)) / C
 
         for body in self.bodies:
-            scaled_dt = dt * TIMESCALE / (max_speed ** TIMESCALE_SLOWDOWN_EXPONENT)
-            if scaled_dt > TIMESCALE:
-                scaled_dt = TIMESCALE
+            scaled_dt = min(dt * TIMESCALE / (max_speed ** TIMESCALE_SLOWDOWN_EXPONENT), dt * TIMESCALE)
             body.step(scaled_dt)
             self.last_scaled_dt = scaled_dt
     
@@ -160,7 +154,8 @@ class System(object):
         for body in self.bodies:
             body.render(surface)
         
-        label = FONT.render("s/s: %f" % (self.last_scaled_dt), 1, (0, 0, 0), (255, 255, 255))
+        following_name = "-" if FOLLOWING == None else self.bodies[FOLLOWING].name
+        label = FONT.render("ts: %f; sts: %f; following %s" % (TIMESCALE, self.last_scaled_dt, following_name), 1, (0, 0, 0), (255, 255, 255))
         surface.blit(label, (0, 0))
 
 def normalize(v):
