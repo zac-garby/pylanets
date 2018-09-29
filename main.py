@@ -169,6 +169,8 @@ def main():
     global SF
     global FONT
     global FOLLOWING
+    global TIMESCALE
+    global RAD_SF
 
     pygame.init()
     size = width, height = 800, 800
@@ -185,12 +187,27 @@ def main():
         planet.vel[0] = velocity
         system.add(planet)
 
-    FOLLOWING = 3
+    FOLLOWING = 0
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    FOLLOWING = (FOLLOWING + 1) % len(system.bodies) if FOLLOWING != None else 0
+                elif event.key == pygame.K_a:
+                    FOLLOWING = (FOLLOWING - 1) % len(system.bodies) if FOLLOWING != None else len(system.bodies)-1
+                elif event.key == pygame.K_z:
+                    FOLLOWING = None
+                elif event.key == pygame.K_w:
+                    TIMESCALE *= 1.1
+                elif event.key == pygame.K_s:
+                    TIMESCALE /= 1.1
+                elif event.key == pygame.K_d:
+                    RAD_SF += 0.05
+                elif event.key == pygame.K_e:
+                    RAD_SF = max(RAD_SF - 0.05, 0.01)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 4:
                     SF /= 1.1
