@@ -185,7 +185,7 @@ def main():
         planet.vel[0] = velocity
         system.add(planet)
 
-    FOLLOWING = 10
+    FOLLOWING = 3
 
     while True:
         for event in pygame.event.get():
@@ -203,11 +203,11 @@ def main():
             TV[1] += diff[1] * SF
         elif FOLLOWING != None:
             wanted = np.array([
-                -system.bodies[FOLLOWING].pos[0],
-                -system.bodies[FOLLOWING].pos[1]
+                -system.bodies[FOLLOWING].pos[0] - system.bodies[FOLLOWING].vel[0],
+                -system.bodies[FOLLOWING].pos[1] - system.bodies[FOLLOWING].vel[1]
             ])
             
-            TV += (wanted - TV) * 0.3
+            TV += (wanted - TV) * 0.9
 
         system.step()
         
