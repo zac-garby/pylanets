@@ -21,16 +21,7 @@ PLANETS = [
 
 GRAV = 6.67e-11
 C = 299792458
-# SF = 3e+8
-# RAD_SF = 1
-# TIMESCALE = 5e+4
-# TIME_RESOLUTION = 8
-# DYNAMIC_TIME_FACTOR = 1
-# TIMESCALE_SLOWDOWN_EXPONENT = 1.5
-# TV = np.array([0, 0], dtype=np.float)
-# TRAIL_LEN = 500
 FONT = None
-# FOLLOWING = None
 SQRT_2 = math.sqrt(2)
 
 class Body(object):
