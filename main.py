@@ -21,16 +21,16 @@ PLANETS = [
 
 GRAV = 6.67e-11
 C = 299792458
-SF = 3e+8
-RAD_SF = 1
-TIMESCALE = 5e+4
-TIME_RESOLUTION = 8
-DYNAMIC_TIME_FACTOR = 1
-TIMESCALE_SLOWDOWN_EXPONENT = 1.5
-TV = np.array([0, 0], dtype=np.float)
-TRAIL_LEN = 500
+# SF = 3e+8
+# RAD_SF = 1
+# TIMESCALE = 5e+4
+# TIME_RESOLUTION = 8
+# DYNAMIC_TIME_FACTOR = 1
+# TIMESCALE_SLOWDOWN_EXPONENT = 1.5
+# TV = np.array([0, 0], dtype=np.float)
+# TRAIL_LEN = 500
 FONT = None
-FOLLOWING = None
+# FOLLOWING = None
 SQRT_2 = math.sqrt(2)
 
 class Body(object):
@@ -90,11 +90,9 @@ class Body(object):
             self.discrete_step(cdt)
         
     def coalesce(self, other):
-        global FOLLOWING
-
         index = self.system.bodies.index(self)
         del self.system.bodies[index]
-        FOLLOWING = None
+        self.system.following_index = None
     
     def discrete_step(self, dt):
         if self.system == None:
@@ -112,19 +110,19 @@ class Body(object):
         self.pos += self.vel * dt
     
     def required_timesteps(self):
-         return max(round(1 / (1 - (self.speed()**2)/(C**2)) * DYNAMIC_TIME_FACTOR), TIME_RESOLUTION)
+         return max(round(1 / (1 - (self.speed()**2)/(C**2)) * self.system.dynamic_time_factor), self.system.time_resolution)
 
     def render(self, surface):
-        vpos = ((self.pos + TV) / SF + 400).astype(int)
-        vrad = max(int(self.radius / (SF * RAD_SF)), 0)
+        vpos = ((self.pos + self.system.translation) / self.system.sf + 400).astype(int)
+        vrad = max(int(self.radius / (self.system.sf * self.system.radius_sf)), 0)
 
         self.trail.append((self.pos).astype(int).tolist())
         if len(self.trail) > 1:
-            pygame.draw.lines(surface, (100, 100, 100), False, list(map(lambda p: [(p[0] + TV[0])/SF + 400, (p[1] + TV[1])/SF + 400], self.trail)), 1)
-        if len(self.trail) > TRAIL_LEN:
+            pygame.draw.lines(surface, (100, 100, 100), False, list(map(lambda p: [(p[0] + self.system.translation[0])/self.system.sf + 400, (p[1] + self.system.translation[1])/self.system.sf + 400], self.trail)), 1)
+        if len(self.trail) > self.system.trail_len:
             self.trail = self.trail[1:]
 
-        pygame.draw.circle(surface, (20, 20, 20, 30), vpos, int(self.schwarzchild_radius() / (SF * RAD_SF)))
+        pygame.draw.circle(surface, (20, 20, 20, 30), vpos, int(self.schwarzchild_radius() / (self.system.sf * self.system.radius_sf)))
         pygame.draw.circle(surface, (255, 255, 255), vpos, vrad)
         label = FONT.render("%s (%fc)" % (self.name, math.hypot(self.vel[0], self.vel[1]) / 299792458), 1, (255, 255, 255))
         surface.blit(label, (vpos[0] + 1/SQRT_2*vrad, vpos[1] + 1/SQRT_2*vrad))
@@ -134,6 +132,16 @@ class System(object):
         self.bodies = []
         self.last_frame = time.time()
         self.last_scaled_dt = 0
+
+        self.following_index = None
+        self.trail_len = 500
+        self.translation = np.array([0, 0], dtype=np.float)
+        self.timescale_slowdown_exponent = 1.5
+        self.dynamic_time_factor = 1
+        self.time_resolution = 8
+        self.timescale = 5e+4
+        self.radius_sf = 1
+        self.sf = 3e+8
     
     def add(self, body):
         body.system = self
@@ -146,7 +154,7 @@ class System(object):
         max_speed = max(map(lambda b: b.speed(), self.bodies)) / C
 
         for body in self.bodies:
-            scaled_dt = min(dt * TIMESCALE / (max_speed ** TIMESCALE_SLOWDOWN_EXPONENT), dt * TIMESCALE)
+            scaled_dt = min(dt * self.timescale / (max_speed ** self.timescale_slowdown_exponent), dt * self.timescale)
             body.step(scaled_dt)
             self.last_scaled_dt = scaled_dt
     
@@ -154,8 +162,8 @@ class System(object):
         for body in self.bodies:
             body.render(surface)
         
-        following_name = "-" if FOLLOWING == None else self.bodies[FOLLOWING].name
-        label = FONT.render("ts: %f; sts: %f; following %s" % (TIMESCALE, self.last_scaled_dt, following_name), 1, (0, 0, 0), (255, 255, 255))
+        following_name = "-" if self.following_index == None else self.bodies[self.following_index].name
+        label = FONT.render("ts: %f; sts: %f; following %s" % (self.timescale, self.last_scaled_dt, following_name), 1, (0, 0, 0), (255, 255, 255))
         surface.blit(label, (0, 0))
 
 def normalize(v):
@@ -165,12 +173,7 @@ def normalize(v):
     return v / norm
 
 def main():
-    global TV
-    global SF
     global FONT
-    global FOLLOWING
-    global TIMESCALE
-    global RAD_SF
 
     pygame.init()
     size = width, height = 800, 800
@@ -187,7 +190,7 @@ def main():
         planet.vel[0] = velocity
         system.add(planet)
 
-    FOLLOWING = 0
+    system.following_index = 0
 
     while True:
         for event in pygame.event.get():
@@ -195,36 +198,36 @@ def main():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
-                    FOLLOWING = (FOLLOWING + 1) % len(system.bodies) if FOLLOWING != None else 0
+                    system.following_index = (system.following_index + 1) % len(system.bodies) if system.following_index != None else 0
                 elif event.key == pygame.K_a:
-                    FOLLOWING = (FOLLOWING - 1) % len(system.bodies) if FOLLOWING != None else len(system.bodies)-1
+                    system.following_index = (system.following_index - 1) % len(system.bodies) if system.following_index != None else len(system.bodies)-1
                 elif event.key == pygame.K_z:
-                    FOLLOWING = None
+                    system.following_index = None
                 elif event.key == pygame.K_w:
-                    TIMESCALE *= 1.1
+                    system.timescale *= 1.1
                 elif event.key == pygame.K_s:
-                    TIMESCALE /= 1.1
+                    system.timescale /= 1.1
                 elif event.key == pygame.K_d:
-                    RAD_SF += 0.05
+                    system.radius_sf += 0.05
                 elif event.key == pygame.K_e:
-                    RAD_SF = max(RAD_SF - 0.05, 0.01)
+                    system.radius_sf = max(system.radius_sf - 0.05, 0.01)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 4:
-                    SF /= 1.1
+                    system.sf /= 1.1
                 elif event.button == 5:
-                    SF *= 1.1
+                    system.sf *= 1.1
         
         diff = pygame.mouse.get_rel()
         if pygame.mouse.get_pressed()[0]:
-            TV[0] += diff[0] * SF
-            TV[1] += diff[1] * SF
-        elif FOLLOWING != None:
+            system.translation[0] += diff[0] * system.sf
+            system.translation[1] += diff[1] * system.sf
+        elif system.following_index != None:
             wanted = np.array([
-                -system.bodies[FOLLOWING].pos[0] - system.bodies[FOLLOWING].vel[0],
-                -system.bodies[FOLLOWING].pos[1] - system.bodies[FOLLOWING].vel[1]
+                -system.bodies[system.following_index].pos[0] - system.bodies[system.following_index].vel[0],
+                -system.bodies[system.following_index].pos[1] - system.bodies[system.following_index].vel[1]
             ])
             
-            TV += (wanted - TV) * 0.9
+            system.translation += (wanted - system.translation) * 0.9
 
         system.step()
         
