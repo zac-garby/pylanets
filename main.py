@@ -2,6 +2,7 @@ import numpy as np
 import math
 import time
 import sys
+import random
 import pygame
 
 PLANETS = [
@@ -185,8 +186,12 @@ def main():
     system = System()
 
     for name, distance, velocity, mass, radius in PLANETS:
-        planet = Body(name, 0, distance, mass, radius)
-        planet.vel[0] = velocity
+        angle = random.random() * random.TWOPI
+        x = distance * math.cos(angle)
+        y = -distance * math.sin(angle)
+        planet = Body(name, x, y, mass, radius)
+        planet.vel[0] = -velocity * math.sin(angle)
+        planet.vel[1] = -velocity * math.cos(angle)
         system.add(planet)
 
     system.following_index = 0
