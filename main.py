@@ -35,6 +35,7 @@ class Body(object):
         self.pos = np.array([x, y], dtype=np.float)
         self.vel = np.array([0, 0], dtype=np.float)
         self.acc = np.array([0, 0], dtype=np.float)
+        self.applied_force = np.zeros(2, dtype=np.float)
     
     def compute_force_to(self, other):
         dist = self.dist(other)
@@ -80,6 +81,8 @@ class Body(object):
         for i in range(timesteps):
             self.discrete_step(cdt)
         
+        self.applied_force = np.zeros(2, dtype=np.float)
+        
     def coalesce(self, other):
         index = self.system.bodies.index(self)
         del self.system.bodies[index]
@@ -96,9 +99,14 @@ class Body(object):
             
             total_force += self.compute_force_to(body)
         
+        total_force += self.applied_force
+        
         self.acc = total_force / self.rmass()
         self.vel += self.acc * dt
         self.pos += self.vel * dt
+    
+    def apply_force(self, force):
+        self.applied_force += force
     
     def required_timesteps(self):
          return max(round(1 / (1 - (self.speed()**2)/(C**2)) * self.system.dynamic_time_factor), self.system.time_resolution)
