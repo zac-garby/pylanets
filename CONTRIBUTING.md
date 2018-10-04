@@ -1,0 +1,1 @@
+Cool, you want to contribute! You don't really need to worry about too much, but please make sure you reply to the issue saying you want to do that particular task to prevent two people working on the same thing.
