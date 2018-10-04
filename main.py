@@ -6,18 +6,19 @@ import random
 import pygame
 
 PLANETS = [
-    # (name, distance, velocity, mass, radius)
-    ("sun", 0, 0, 1.99e+30, 1.392e+9),
-    ("mercury", 46e+9, 58.98e+3, 0.33011e+24, 2439.7e+3),
-    ("venus", 107.48e+9, 35.26e+3, 4.8675e+24, 6051.8e+3),
-    ("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3),
-    ("mars", 206.62e+9, 26.5e+3, 0.64171e+24, 3396.2e+3),
-    ("jupiter", 816.62e+9, 13.72e+3, 1898.19e+24, 71492e+3),
-    ("saturn", 1352.55e+9, 10.18e+3, 568.34e+24, 60268e+3),
-    ("uranus", 2741.30e+9, 7.11e+3, 86.813e+24, 25559e+3),
-    ("neptune", 4444.45e+9, 5.5e+3, 102.413e+24, 24764e+3),
-    ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3),
-    ("moon", 147.09e+9 + 0.3633e+9, 30.29e+3 + 1.082e+3, 0.07346e+24, 1738.1e+3),
+    # (name, distance, velocity, mass, radius, sub-bodies)
+    ("sun", 0, 0, 1.99e+30, 1.392e+9, []),
+    ("mercury", 46e+9, 58.98e+3, 0.33011e+24, 2439.7e+3, []),
+    ("venus", 107.48e+9, 35.26e+3, 4.8675e+24, 6051.8e+3, []),
+    ("earth", 147.09e+9, 30.29e+3, 5.9723e+24, 6378.137e+3, [
+        ("moon", 0.3633e+9, 1.082e+3, 0.07346e+24, 1738.1e+3, []),
+    ]),
+    ("mars", 206.62e+9, 26.5e+3, 0.64171e+24, 3396.2e+3, []),
+    ("jupiter", 816.62e+9, 13.72e+3, 1898.19e+24, 71492e+3, []),
+    ("saturn", 1352.55e+9, 10.18e+3, 568.34e+24, 60268e+3, []),
+    ("uranus", 2741.30e+9, 7.11e+3, 86.813e+24, 25559e+3, []),
+    ("neptune", 4444.45e+9, 5.5e+3, 102.413e+24, 24764e+3, []),
+    ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3, []),
 ]
 
 GRAV = 6.67e-11
@@ -133,7 +134,7 @@ class System(object):
         self.last_frame = time.time()
         self.last_scaled_dt = 0
 
-        self.following_index = None
+        self.following_index = 0
         self.trail_len = 500
         self.translation = np.array([0, 0], dtype=np.float)
         self.timescale_slowdown_exponent = 1.5
@@ -146,6 +147,17 @@ class System(object):
     def add(self, body):
         body.system = self
         self.bodies.append(body)
+    
+    def construct_bodies(self, bodies, rel_pos=(0, 0), rel_vel=(0, 0)):
+        for name, distance, velocity, mass, radius, sub_bodies in bodies:
+            angle = random.random() * random.TWOPI
+            x = distance * math.cos(angle) + rel_pos[0]
+            y = -distance * math.sin(angle) + rel_pos[1]
+            body = Body(name, x, y, mass, radius)
+            body.vel[0] = -velocity * math.sin(angle) + rel_vel[0]
+            body.vel[1] = -velocity * math.cos(angle) + rel_vel[1]
+            self.add(body)
+            self.construct_bodies(sub_bodies, rel_pos=(x, y), rel_vel=(body.vel[0], body.vel[1]))
     
     def step(self):
         dt = time.time() - self.last_frame
@@ -184,17 +196,7 @@ def main():
     FONT = pygame.font.SysFont("monospace", 13)
 
     system = System()
-
-    for name, distance, velocity, mass, radius in PLANETS:
-        angle = random.random() * random.TWOPI
-        x = distance * math.cos(angle)
-        y = -distance * math.sin(angle)
-        planet = Body(name, x, y, mass, radius)
-        planet.vel[0] = -velocity * math.sin(angle)
-        planet.vel[1] = -velocity * math.cos(angle)
-        system.add(planet)
-
-    system.following_index = 0
+    system.construct_bodies(PLANETS)
 
     while True:
         for event in pygame.event.get():
