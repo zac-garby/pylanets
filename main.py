@@ -134,7 +134,7 @@ class System(object):
         self.last_frame = time.time()
         self.last_scaled_dt = 0
 
-        self.following_index = None
+        self.following_index = 0
         self.trail_len = 500
         self.translation = np.array([0, 0], dtype=np.float)
         self.timescale_slowdown_exponent = 1.5
@@ -196,7 +196,6 @@ def main():
     FONT = pygame.font.SysFont("monospace", 13)
 
     system = System()
-    system.following_index = 0
     system.construct_bodies(PLANETS)
 
     while True:
