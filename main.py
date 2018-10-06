@@ -126,7 +126,7 @@ class Body(object):
 
         pygame.draw.circle(surface, (20, 20, 20, 30), vpos, int(self.schwarzchild_radius() / (self.system.sf * self.system.radius_sf)))
         pygame.draw.circle(surface, (255, 255, 255), vpos, vrad)
-        label = FONT.render("%s (%fc)" % (self.name, math.hypot(self.vel[0], self.vel[1]) / 299792458), 1, (255, 255, 255))
+        label = FONT.render("%s" % self.name, 1, (255, 255, 255))
         surface.blit(label, (vpos[0] + 1/SQRT_2*vrad, vpos[1] + 1/SQRT_2*vrad))
 
 class System(object):
