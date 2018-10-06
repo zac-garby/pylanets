@@ -21,6 +21,7 @@ PLANETS = [
     ("pluto", 4436.82e+9, 6.1e+3, 0.01303e+24, 1187e+3, []),
 ]
 
+SIZE = np.array([1000, 800])
 GRAV = 6.67e-11
 C = 299792458
 FONT = None
@@ -114,12 +115,12 @@ class Body(object):
          return max(round(1 / (1 - (self.speed()**2)/(C**2)) * self.system.dynamic_time_factor), self.system.time_resolution)
 
     def render(self, surface):
-        vpos = ((self.pos + self.system.translation) / self.system.sf + 400).astype(int)
+        vpos = ((self.pos + self.system.translation) / self.system.sf + SIZE / 2).astype(int)
         vrad = max(int(self.radius / (self.system.sf * self.system.radius_sf)), 0)
 
         self.trail.append((self.pos).astype(int).tolist())
         if len(self.trail) > 1:
-            pygame.draw.lines(surface, (100, 100, 100), False, list(map(lambda p: [(p[0] + self.system.translation[0])/self.system.sf + 400, (p[1] + self.system.translation[1])/self.system.sf + 400], self.trail)), 1)
+            pygame.draw.lines(surface, (100, 100, 100), False, list(map(lambda p: [(p[0] + self.system.translation[0])/self.system.sf + SIZE[0]/2, (p[1] + self.system.translation[1])/self.system.sf + SIZE[1]/2], self.trail)), 1)
         if len(self.trail) > self.system.trail_len:
             self.trail = self.trail[1:]
 
@@ -188,7 +189,7 @@ def main():
     global FONT
 
     pygame.init()
-    size = width, height = 800, 800
+    size = SIZE[0], SIZE[1]
     background = 0, 0, 0
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption("pylanets")
